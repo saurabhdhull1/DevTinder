@@ -25,6 +25,7 @@ app.get('/user', (req, res) => {
     res.send('User ' + req.query.name);  
 })
 
+
 // Advanced patterns
 
 // Advanced route patterns using ? (c is optional)
