@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const SALT_ROUNDS = 10; // Number of rounds to generate salt
+const validate = require('validator');
 
 const userSchema = new mongoose.Schema({
-    firstName: { type: String, required: true, unique: true, trim: true,
+    firstName: { type: String, required: true, trim: true, minlength: 3,maxlength: 20,
         validate(value) {
             if (!/^[a-zA-Z]+$/.test(value)) {
                 throw new Error('First name must contain only letters and cannot be empty');
@@ -13,12 +14,16 @@ const userSchema = new mongoose.Schema({
     lastName: { type: String },
     emailId: { type: String, required: true, unique: true, lowercase: true, trim: true,
         validate(value) {
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                throw new Error('Invalid email format');
+            if (!validate.isEmail(value)) {
+                throw new Error('Invalid email');
             }
         }
     },
-    password: { type: String, required: true },
+    password: { type: String, required: true, validate(){
+        if (validate.isStrongPassword(this.password) === false) {
+            throw new Error('Password is not strong enough');
+        }
+    } },
     age: { type: Number, min: 0, max: 120 },
     gender: { type: String,
         validate(value) {
@@ -27,8 +32,14 @@ const userSchema = new mongoose.Schema({
             }
         }
     },
-    profileUrl: { type: String, default: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png' },
-    skills: { type: String },
+    profileUrl: { type: String, default: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png',
+        validate(value) {
+            if (!validate.isURL(value)) {
+                throw new Error('Invalid URL');
+            }
+        }
+    },
+    skills: { type: Array, default: [] },
     about: { type: String },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
@@ -39,15 +50,6 @@ userSchema.pre('save', async function (next) {
     const user = this;
     // Only hash the password if it has been modified (or is new)
     if (!user.isModified('password')) return next();
-
-    try {
-        const salt = await bcrypt.genSalt(SALT_ROUNDS);
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        user.password = hashedPassword;
-        next();
-    } catch (error) {
-        return next('Hashing password Error: ' + error);
-    }
 });
 
 module.exports = mongoose.model('User', userSchema);
