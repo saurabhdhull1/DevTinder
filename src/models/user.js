@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const SALT_ROUNDS = 10; // Number of rounds to generate salt
 const validate = require('validator');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const userSchema = new mongoose.Schema({
     firstName: { type: String, required: true, trim: true, minlength: 3,maxlength: 20,
@@ -45,11 +46,29 @@ const userSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Pre-save hook to hash password before saving
+// JWT token
+userSchema.methods.getJwtToken = async function () {
+    const user = this;
+    const token = jwt.sign({ _id: user._id }, process.env.JWT_PRIVATEKEY);
+    return token;
+};
+
+// Compare password
+userSchema.methods.comparePassword = async function (passwordEnterByUser) {
+    const passwordHash = this.password;
+    const isMatch = await bcrypt.compare(passwordEnterByUser, passwordHash);
+    return isMatch;
+};
+
+// Hash password before saving
 userSchema.pre('save', async function (next) {
     const user = this;
     // Only hash the password if it has been modified (or is new)
     if (!user.isModified('password')) return next();
+    const salt = await bcrypt.genSalt(process.env.SALT_ROUNDS);
+    const hashedPassword = await bcrypt.hash(user.password, salt);
+    user.password = hashedPassword;
+    next();
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,5 +1,6 @@
 const validate = require('validator');
-const user = require('../models/user');
+const User = require('../models/User');
+const bcrypt = require('bcrypt');
 
 async function validateSignup(req){
     const { firstName, lastName, emailId, password } = req.body;
@@ -17,8 +18,8 @@ async function validateSignup(req){
     
     // Check if the user already exists
     try {
-        const existingUser = await user.findOne({ emailId });
-        if (existingUser) { 
+        const user = await User.findOne({ emailId });
+        if (user) { 
             throw new Error('Email already exists'); 
         }
     } catch (error) {
@@ -27,7 +28,17 @@ async function validateSignup(req){
     }
 }
 
+async function validateLogin(emailId, password) {
+    if (!emailId || !password) {
+        throw new Error('All fields are required');
+    }
+    if (!validate.isEmail(emailId)) {
+        throw new Error('Invalid email or password');
+    }
+}
+
 
 module.exports = {
-    validateSignup
+    validateSignup,
+    validateLogin
 }
